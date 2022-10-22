@@ -10,13 +10,16 @@
 #include <WiFiManager.h>
 // WebServer Libraries
 #include <ESP8266WebServer.h>
+#include <WEMOS_Matrix_LED.h>
 
 // Initialize Web Server on port 80
 ESP8266WebServer server(80);
 
 // Initialize LED Matrix
-int matrixCS = 2; // The Chip Select pin
-Max72xxPanel matrix = Max72xxPanel(matrixCS, 1, 1);
+//int matrixCS = 8; // The Chip Select pin
+//Max72xxPanel matrix = Max72xxPanel(matrixCS, 1, 1);
+
+MLED matrix(7);
 
 // Display Mode
 // 0 = Display IP address
@@ -57,14 +60,14 @@ void drawImage(String hex) {
       byte thisChunk = strtol(arr, 0, 16); // Convert the hex string to a byte, wich represents one line of pixels
 
       for (int j = 0; j < 8; j++) {
-        matrix.drawPixel(j, i, bitRead(thisChunk, 7 - j)); // Draw the pixel to the frame buffer
+        matrix.dot(j, i, bitRead(thisChunk, 7 - j)); // Draw the pixel to the frame buffer
       }
 
       hex = hex.substring(2, hex.length()); // Remove the first two characters from the string to get ready for drawing the next line.
     }
   }
 
-  matrix.write(); // Write the framebuffer to the screen
+  matrix.display(); // Write the framebuffer to the screen
 }
 
 // Handles incoming HTTP Requests
@@ -88,7 +91,9 @@ void handleRequest() {
     int targetIntensity = server.arg("intensity").toInt();
 
     if (targetIntensity >= 0 && targetIntensity < 16) {
-      matrix.setIntensity(targetIntensity); // Set brightness to target Intensity  
+      matrix.intensity=targetIntensity; // Set brightness to target Intensity
+      //matrix(7); // Set brightness to target Intensity  
+  
 
       Serial.println("OK: Set Intensity to " + String(targetIntensity));
       response += "OK: Set Intensity to " + String(targetIntensity) + "\n";
@@ -188,10 +193,10 @@ void setup() {
   Serial.begin(115200); // Initialize Serial port
 
   // Initialize LED matrix
-  matrix.setIntensity(8); // Set brightness between 0 and 15
-  matrix.setRotation(0, 1); // Set the display rotation to 90 degrees
-  matrix.fillScreen(LOW); // Clear the screen
-  matrix.write();
+  matrix.intensity=7; // Set brightness between 0 and 15
+  //matrix.setRotation(0, 1); // Set the display rotation to 90 degrees
+  //matrix.fillScreen(LOW); // Clear the screen
+  matrix.display();
   Serial.println("MATRIX OK");
   
   // Initialize WiFi Connection
@@ -213,7 +218,7 @@ void loop() {
   
   if (displayMode == 0 || displayMode == 3) { // Message Display
     if (millis() % msgSpeed == 0) {
-      if (msgPos > width * message.length() + matrix.width() - 1 - spacer) { // Message has made 1 pass across the display
+      if (msgPos > width * message.length() + 8 - 1 - spacer) { // Message has made 1 pass across the display
         if (!msgRepeat) {
           drawImage(lastImage);
           displayMode = 1; // Static Image mode
@@ -228,19 +233,23 @@ void loop() {
       }
 
       int letterPos = msgPos / width;
-      int x = (matrix.width() - 1) - msgPos % width;
-      int y = (matrix.height() - 8) / 2; // center the text vertically
+      int x = (8 - 1) - msgPos % width;
+      int y = (8 - 8) / 2; // center the text vertically
+
+
+
+
 
       while ( x + width - spacer >= 0 && letterPos >= 0 ) { // Draw the visible text
         if ( letterPos < message.length() ) {
-          matrix.drawChar(x, y, message[letterPos], HIGH, LOW, 1);
+          //matrix.drawChar(x, y, message[letterPos], HIGH, LOW, 1);
         }
 
         letterPos--;
         x -= width;
       }
 
-      matrix.write(); // Write the frame buffer to the display
+      matrix.display(); // Write the frame buffer to the display
 
       msgPos++;
       delay(1); // Prevent multiple loops within a single ms.
@@ -251,8 +260,8 @@ void loop() {
       Serial.println("ANIMATION FRAME: " + String(animPos) + "/" + String(animLength));
       if (animPos == animLength) { // End of animation
         if (!animRepeat) {
-          matrix.fillScreen(LOW); // Clear the screen
-          matrix.write();
+          //matrix.fillScreen(LOW); // Clear the screen
+          matrix.display();
 
           displayMode = 1; // Static Image mode
         } else {
